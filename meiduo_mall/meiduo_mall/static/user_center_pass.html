@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <title>美多商城-用户中心</title>
+    <link rel="stylesheet" type="text/css" href="../static/css/reset.css">
+    <link rel="stylesheet" type="text/css" href="../static/css/main.css">
+    <script type="text/javascript" src="../static/js/host.js"></script>
+    <script type="text/javascript" src="../static/js/vue-2.5.16.js"></script>
+    <script type="text/javascript" src="../static/js/axios-0.18.0.min.js"></script>
+</head>
+<body>
+<div id="app" v-cloak>
+    <div class="header_con">
+        <div class="header">
+            <div class="welcome fl">欢迎来到美多商城!</div>
+            <div class="fr">
+                <div class="login_btn fl">
+                    欢迎您：<em>{{ request.user.username }}</em>
+                    <span>|</span>
+                    <a href="/logout/">退出</a>
+                </div>
+                <div class="user_link fl">
+                    <span>|</span>
+                    <a href="/info/">用户中心</a>
+                    <span>|</span>
+                    <a href="/carts/">我的购物车</a>
+                    <span>|</span>
+                    <a href="/orders/info/1/">我的订单</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="search_bar clearfix">
+        <a href="/" class="logo fl"><img src="../static/images/logo.png"></a>
+        <div class="search_wrap fl">
+            <form method="get" action="/search/" class="search_con">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="text" class="input_text fl" name="q" placeholder="搜索商品">
+                <input type="submit" class="input_btn fr" name="" value="搜索">
+            </form>
+            <ul class="search_suggest fl">
+                <li><a href="#">索尼微单</a></li>
+                <li><a href="#">优惠15元</a></li>
+                <li><a href="#">美妆个护</a></li>
+                <li><a href="#">买2免1</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="main_con clearfix">
+        <div class="left_menu_con clearfix">
+            <h3>用户中心</h3>
+            <ul>
+                <li><a href="/info/">· 个人信息</a></li>
+                <li><a href="/orders/info/1/">· 全部订单</a></li>
+                <li><a href="/addresses/">· 收货地址</a></li>
+                <li><a href="/password/" class="active">· 修改密码</a></li>
+            </ul>
+        </div>
+        <div class="right_content clearfix">
+            <div class="info_con clearfix">
+                <h3 class="common_title2">修改密码</h3>
+                <div class="site_con pass_change_con">
+                    <form class="change_pwd" @submit="on_submit" method="post">
+                        {{ csrf_input }}
+                        <div class="form_group">
+                            <label>当前密码：</label>
+                            <input type="password" v-model="old_pwd" class="old_pwd" name="old_pwd" @blur="check_opwd">
+                            <span class="old_pwd_error" v-show="error_opwd">请输入8-12位的密码</span>
+                            {% if origin_pwd_errmsg %}
+                                <span class="old_pwd_error">{{ origin_pwd_errmsg }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="form_group">
+                            <label>新密码：</label>
+                            <input type="password" v-model="new_pwd" class="new_pwd" name="new_pwd" @blur="check_pwd">
+                            <span class="new_pwd_error" v-show="error_pwd">请输入8-12位的密码</span>
+                        </div>
+                        <div class="form_group">
+                            <label>确认新密码：</label>
+                            <input type="password" v-model="new_cpwd" class="new_cpwd" name="new_cpwd"
+                                   @blur="check_cpwd">
+                            <span class="new_cpwd_error" v-show="error_cpwd">两次输入的密码不一致</span>
+                            {% if change_pwd_errmsg %}
+                                <span class="new_cpwd_error">{{ change_pwd_errmsg }}</span>
+                            {% endif %}
+                        </div>
+                        <input type="submit" name="" value="确 定" class="info_submit">
+                        <input type="reset" name="" value="取 消" class="info_submit info_reset">
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="foot_link">
+            <a href="#">关于我们</a>
+            <span>|</span>
+            <a href="#">联系我们</a>
+            <span>|</span>
+            <a href="#">招聘人才</a>
+            <span>|</span>
+            <a href="#">友情链接</a>
+        </div>
+        <p>CopyRight © 2016 北京美多商业股份有限公司 All Rights Reserved</p>
+        <p>电话：010-****888 京ICP备*******8号</p>
+    </div>
+</div>
+<script type="text/javascript" src="../static/js/common.js"></script>
+<script type="text/javascript" src="../static/js/user_center_pass.js"></script>
+</body>
+</html>
