@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
     # 注册应用
     'users.apps.UsersConfig',  # 用户模块应用
+
 ]
 
 MIDDLEWARE = [
@@ -82,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',  # 数据库引擎
         'HOST': '127.0.0.1',  # 数据库主机
         'PORT': 3306,  # 数据库端口
-        'USER': 'meiduo',  # 数据库用户名
+        'USER': 'King',  # 数据库用户名
         'PASSWORD': '123456',  # 数据库用户密码
         'NAME': 'meiduo'  # 数据库名字
     }
@@ -187,3 +188,6 @@ LOGGING = {
         },
     }
 }
+
+# 指定用户模型类
+AUTH_USER_MODEL = 'users.User'  # 应用名称.模型类名称
