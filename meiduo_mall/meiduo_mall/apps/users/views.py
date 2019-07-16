@@ -6,6 +6,7 @@ from django.contrib.auth import login, logout
 
 from .models import User
 from utils import constants
+from meiduo_mall.utils.response_code import RETCODE
 
 
 class RegisterView(View):
@@ -57,11 +58,16 @@ class RegisterView(View):
 
         # 3.业务处理
         # 1.创建用户对象
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            mobile=mobile
-        )
+        try:
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                mobile=mobile
+            )
+
+        except:
+            return render(request, 'register.html', {"register_errmsg": "注册失败"})
+
         # 2.状态保持
         login(request, user)
 
@@ -72,3 +78,40 @@ class RegisterView(View):
         # 4.响应
         return response
 
+
+class UsernameCountView(View):
+
+    def get(self, request, username):
+        """
+        用户名重复注册校验
+        :param request: 请求对象
+        :param username: 用户名
+        :return: JSON
+        """
+        # 使用username查询user表, 得到username的数量
+        count = User.objects.filter(username=username).count()
+        # 响应
+        return http.JsonResponse({
+            "code": RETCODE.OK,
+            "errmsg": "OK",
+            "count": count,
+        })
+
+
+class MobileCountView(View):
+
+    def get(self, request, mobile):
+        """
+        手机号重复注册校验
+        :param request: 请求对象
+        :param mobile: 手机号
+        :return: JSON
+        """
+        # 使用username查询user表, 得到mobile的数量
+        count = User.objects.filter(mobile=mobile).count()
+        # 响应
+        return http.JsonResponse({
+            "code": RETCODE.OK,
+            "errmsg": "OK",
+            "count": count,
+        })
