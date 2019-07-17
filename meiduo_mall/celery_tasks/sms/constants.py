@@ -1,8 +1,8 @@
-# 图形验证码过期时间
-IMAGE_CODE_REDIS_EXPIRES = 300
-
 # 短信验证码过期时间
 SMS_CODE_REDIS_EXPIRES = 300
 
 # 短信发送标记有效期
 SMS_CODE_SEND_FLAG = 60
+
+# 短信模板
+SEND_SMS_TEMPLATE_ID = 1
