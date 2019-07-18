@@ -24,4 +24,6 @@ urlpatterns = [
     url(r'^', include('homepag.urls', namespace='homepag')),  # 首页模块
 
     url(r'^', include('verifications.urls', namespace='verifications')),  # 验证码模块
+
+    url(r'^', include('oauth.urls', namespace='oauth')),  # QQ模块
 ]

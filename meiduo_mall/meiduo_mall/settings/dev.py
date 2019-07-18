@@ -25,7 +25,7 @@ SECRET_KEY = 'xn%nv#t)9w+b#w(jy1)b@6t&f1zw8bxj_v9wxb@=2rhjk9iwh5'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['www.meiduo.site']
 
 # Application definition
 
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
     # 注册应用
     'users.apps.UsersConfig',  # 用户模块应用
+    'oauth.apps.OauthConfig'  # QQ模块
 
 ]
 
@@ -204,3 +205,8 @@ AUTHENTICATION_BACKENDS = ['users.utils.UsernameMobileAuthBackend']
 
 # 修改Django中登录界面的路由
 LOGIN_URL = '/login/'
+
+# QQ登录配置
+QQ_CLIENT_ID = '101518219'
+QQ_CLIENT_SECRET = '418d84ebdc7241efb79536886ae95224'
+QQ_REDIRECT_URI = 'http://www.meiduo.site:8000/oauth_callback'
