@@ -6,6 +6,7 @@ import re
 from django.contrib.auth import login, logout
 from django_redis import get_redis_connection
 from django.contrib.auth import authenticate
+from django.contrib.auth import mixins
 
 from .models import User
 from utils import constants
@@ -183,7 +184,7 @@ class LoginView(View):
             request.session.set_expiry(0)
 
         #  4.响应
-        response = redirect(reverse('homepag:index'))
+        response = redirect(request.GET.get('next', '/'))
         response.set_cookie('username', user.username, max_age=constants.USERNAME_COOKIE_EXPIRES)
         return response
 
@@ -205,3 +206,12 @@ class LogoutView(View):
         response.delete_cookie('username')
 
         return response
+
+
+class UserInfoView(mixins.LoginRequiredMixin, View):
+    """用户中心"""
+
+    def get(self, request):
+        """用户中心展示"""
+
+        return render(request, 'user_center_info.html')
