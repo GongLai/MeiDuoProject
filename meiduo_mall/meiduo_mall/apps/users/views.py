@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views import View
 from django import http
 import re
 from django.contrib.auth import login, logout
 from django_redis import get_redis_connection
+from django.contrib.auth import authenticate
 
 from .models import User
 from utils import constants
@@ -64,7 +66,7 @@ class RegisterView(View):
 
         # 2.6.3 判断短信验证码是否过期
         if sms_code_server is None:
-            return http.JsonResponse({
+            return http.HttpResponseForbidden({
                 "code": RETCODE.SMSCODERR,
                 "errmsg": "短信验证码已过期"
             })
@@ -76,7 +78,7 @@ class RegisterView(View):
 
         # 2.6.6 对比短信验证码
         if sms_code_server != sms_code:
-            return http.JsonResponse({
+            return http.HttpResponseForbidden({
                 "code": RETCODE.SMSCODERR,
                 "errmsg": "请输入正确的短信验证码"
             })
@@ -140,3 +142,47 @@ class MobileCountView(View):
             "errmsg": "OK",
             "count": count,
         })
+
+
+class LoginView(View):
+    """用户登录"""
+
+    def get(self, request):
+        """
+        展示登录页面
+        :param request: 请求对象
+        :return: 登录页面
+        """
+        return render(request, 'login.html')
+
+    def post(self, request):
+        """
+        用户登录功能实现
+        :param request: 请求对象
+        :return: 响应结果
+        """
+        #  1.接受参数
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        remembered = request.POST.get('remembered')
+
+        #  2.校验参数
+        # 登录认证
+        user = authenticate(username=username, password=password)
+
+        #  3.业务处理
+        #  3.1 如果if成立说明登录失败
+        if user is None:
+            return render(request, 'login.html', {'errmsg': '用户名或密码错误'})
+        #  3.2 实现状态保持
+        login(request, user)
+        #  3.3 设置状态保持的周期，判断用户是否勾选记住用户
+        if remembered is None:
+            # 没有选择记住用户，浏览器会话结束就过期，默认过期时间是两周
+            # cookie如果指定过期时间为None 关闭浏览器删除, 如果指定0,它还没出生就没了
+            request.session.set_expiry(0)
+
+        #  4.响应
+        response = redirect(reverse('homepag:index'))
+        response.set_cookie('username', user.username, max_age=constants.USERNAME_COOKIE_EXPIRES)
+        return response

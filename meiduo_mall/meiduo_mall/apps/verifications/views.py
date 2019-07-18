@@ -96,6 +96,8 @@ class SMSCodesView(View):
         pl.setex("sms_%s" % mobile, constants.SMS_CODE_REDIS_EXPIRES, sms_code)
         # 向redis中多存储一个此手机号已发送过短信验证码的标记，此标记有效时间60秒
         pl.setex("send_flag_%s" % mobile, constants.SMS_CODE_SEND_FLAG, 1)
+        # 执行管道
+        pl.execute()
 
         # 给当前注册账号的手机发送短信验证码
         # CCP().send_template_sms(要收短信的手机号, [短信验证码, 短信中提示的过期时间单位分钟], 短信模板id)
