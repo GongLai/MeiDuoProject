@@ -186,3 +186,22 @@ class LoginView(View):
         response = redirect(reverse('homepag:index'))
         response.set_cookie('username', user.username, max_age=constants.USERNAME_COOKIE_EXPIRES)
         return response
+
+
+class LogoutView(View):
+    """退出登录"""
+
+    def get(self, request):
+        """
+        实现退出登录逻辑
+        :param request: 请求对象
+        :return: 响应结果
+        """
+        # 清理session
+        logout(request)
+        # 退出登录，重定向回登录页
+        response = redirect(reverse('users:login'))
+        # 退出登录时清除
+        response.delete_cookie('username')
+
+        return response
