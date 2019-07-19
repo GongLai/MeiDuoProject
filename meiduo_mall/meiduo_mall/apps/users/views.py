@@ -2,15 +2,20 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from django import http
-import re
+import re, json, logging
 from django.contrib.auth import login, logout
 from django_redis import get_redis_connection
 from django.contrib.auth import authenticate
 from django.contrib.auth import mixins
 
-from .models import User
+from .models import User, Address
 from utils import constants
+from utils.views import LoginRequiredView
 from meiduo_mall.utils.response_code import RETCODE
+from celery_tasks.email.tasks import send_verify_email
+from .utils import generate_verify_email_url, check_verify_email_token
+
+logger = logging.getLogger('django')
 
 
 class RegisterView(View):
@@ -208,10 +213,156 @@ class LogoutView(View):
         return response
 
 
-class UserInfoView(mixins.LoginRequiredMixin, View):
+class UserInfoView(LoginRequiredView):
     """用户中心"""
 
     def get(self, request):
         """用户中心展示"""
 
         return render(request, 'user_center_info.html')
+
+
+class EmailView(LoginRequiredView):
+    """添加邮箱"""
+
+    def put(self, request):
+        # 接收参数
+        json_dict = json.loads(request.body)
+        email = json_dict.get('email')
+
+        # 校验参数
+        if not email:
+            return http.JsonResponse({'code': RETCODE.NODATAERR, 'errmsg': '缺少email参数'})
+        if not re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+            return http.JsonResponse({'code': RETCODE.EMAILERR, 'errmsg': '邮箱格式错误'})
+
+        # 业务逻辑处理
+        # 获取登录用户
+        user = request.user
+        # 修改email
+        User.objects.filter(username=User.username, email='').update(email=email)
+
+        # 发送邮件
+        try:
+            # 给当前登录用户的模型对象user的email字段赋值
+            request.user.email = email
+            request.user.save()
+        except Exception as e:
+            logger.error(e)
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '添加邮箱失败'})
+
+        # 异步发送验证邮件
+        # 生成邮箱激活链接
+        verify_url = generate_verify_email_url(user)
+        # celery进行异步发送邮件
+        send_verify_email.delay(email, verify_url)
+
+        # 响应添加邮箱结果
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '添加邮箱成功'})
+
+
+class VerifyEmailView(LoginRequiredView):
+    """验证邮件"""
+
+    def get(self, request):
+        # 获取数据
+        token = request.GET.get('token')
+
+        # 校验参数，判断token是否为空或过期，提前user
+        if token is None:
+            return http.HttpResponseBadRequest('缺少token')
+
+        user = check_verify_email_token(token)
+        if user is None:
+            return http.HttpResponseForbidden('无效的token')
+
+        # 修改email_active的值为True
+        try:
+            user.email_active = True
+            user.save()
+        except Exception as e:
+            logger.error(e)
+            return http.HttpResponseServerError('激活邮件失败')
+
+        # 响应：返回激活邮件结果
+        return redirect(reverse('users:info'))
+
+
+class AddressesView(LoginRequiredView):
+
+    def get(self, request):
+        """提供收货地址界面展示"""
+        return render(request, 'user_center_site.html')
+
+
+class CreateAddressView(LoginRequiredView):
+    """新增地址"""
+
+    def post(self, request):
+        # 判断当前用户所有未被逻辑删除的收货地址的数量:最多20个
+        count = Address.objects.filter(user=request.user, is_deleted=False).count()
+        if count > 20:
+            return http.JsonResponse({'code': RETCODE.THROTTLINGERR, 'errmsg': '超过地址数量上限'})
+
+        # 接收请求体 body数据
+        json_dict = json.loads(request.body)
+        receiver = json_dict.get('receiver')
+        province_id = json_dict.get('province_id')
+        city_id = json_dict.get('city_id')
+        district_id = json_dict.get('district_id')
+        place = json_dict.get('place')
+        mobile = json_dict.get('mobile')
+        tel = json_dict.get('tel')
+        email = json_dict.get('email')
+
+        # 校验参数
+        if not all([receiver, province_id, city_id, district_id, place, mobile]):
+            return http.HttpResponseForbidden('缺少必传参数')
+        if not re.match(r'^1[3-9]\d{9}$', mobile):
+            return http.HttpResponseForbidden('参数mobile有误')
+        if tel:
+            if not re.match(r'^(0[0-9]{2,3}-)?([2-9][0-9]{6,7})+(-[0-9]{1,4})?$', tel):
+                return http.HttpResponseForbidden('参数tel有误')
+        if email:
+            if not re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+                return http.HttpResponseForbidden('参数email有误')
+
+        # 业务处理
+        # 保持地址信息
+        try:
+            address = Address.objects.create(
+                user=request.user,
+                title=receiver,
+                receiver=receiver,
+                province_id=province_id,
+                city_id=city_id,
+                district_id=district_id,
+                place=place,
+                mobile=mobile,
+                tel=tel,
+                email=email
+            )
+            # 设置默认地址
+            if not request.user.default_address:
+                request.user.default_address = address
+                request.user.save()
+        except Exception as e:
+            logger.error(e)
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '新增地址失败'})
+
+        # 新增地址成功，将新增的地址再转换成字典响应给前端实现局部刷新
+        address_dict = {
+            'id': address.id,
+            "title": address.title,
+            "receiver": address.receiver,
+            "province": address.province.name,
+            "city": address.city.name,
+            "district": address.district.name,
+            "place": address.place,
+            "mobile": address.mobile,
+            "tel": address.tel,
+            "email": address.email
+        }
+
+        # 响应
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '新增地址成功', 'address': address_dict})

@@ -38,8 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # 注册应用
-    'users.apps.UsersConfig',  # 用户模块应用
-    'oauth.apps.OauthConfig'  # QQ模块
+    'users.apps.UsersConfig',  # 用户模块
+    'oauth.apps.OauthConfig',  # QQ模块
+    'areas.apps.AreasConfig',  # 省市区模块
 
 ]
 
@@ -152,8 +153,8 @@ CACHES = {
         }
     },
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "session"
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"  # 修改session存储机制使用Redis保存
+SESSION_CACHE_ALIAS = "session"  # 使用名为"session"的Redis配置项存储session数据
 
 # 日志文件配置项
 LOGGING = {
@@ -174,16 +175,16 @@ LOGGING = {
     },
     'handlers': {  # 日志处理方法
         'console': {  # 向终端中输出日志
-            'level': 'INFO',
-            'filters': ['require_debug_true'],
-            'class': 'logging.StreamHandler',
+            'level': 'INFO',  # 日志级别
+            'filters': ['require_debug_true'],  # 只有在Django debug为True时才在屏幕打印日志
+            'class': 'logging.StreamHandler',  # 日志流
             'formatter': 'simple'
         },
         'file': {  # 向文件中输出日志
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',  # 保存到文件，自动切
             'filename': os.path.join(os.path.dirname(BASE_DIR), 'logs/meiduo.log'),  # 日志文件的位置
-            'maxBytes': 300 * 1024 * 1024,
+            'maxBytes': 300 * 1024 * 1024,  # 日志大小 300M
             'backupCount': 10,
             'formatter': 'verbose'
         },
@@ -200,7 +201,7 @@ LOGGING = {
 # 修改Django认证系统中的用户模型
 AUTH_USER_MODEL = 'users.User'  # 应用名称.模型类名称
 
-# 自定义Django认证类
+# 指定自定义的用户认证后端
 AUTHENTICATION_BACKENDS = ['users.utils.UsernameMobileAuthBackend']
 
 # 修改Django中登录界面的路由
@@ -210,3 +211,14 @@ LOGIN_URL = '/login/'
 QQ_CLIENT_ID = '101518219'
 QQ_CLIENT_SECRET = '418d84ebdc7241efb79536886ae95224'
 QQ_REDIRECT_URI = 'http://www.meiduo.site:8000/oauth_callback'
+
+# 邮箱配置
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # 指定邮件后端
+EMAIL_HOST = 'smtp.163.com'  # 发邮件主机
+EMAIL_PORT = 25  # 发邮件端口
+EMAIL_HOST_USER = 'itcast99@163.com'  # 授权的邮箱
+EMAIL_HOST_PASSWORD = 'python99'  # 邮箱授权时获得的密码，非注册登录密码
+EMAIL_FROM = '美多商城<itcast99@163.com>'  # 发件人抬头
+
+# 邮箱验证链接
+EMAIL_VERIFY_URL = 'http://www.meiduo.site:8000/emails/verification/'

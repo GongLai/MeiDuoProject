@@ -15,6 +15,14 @@ urlpatterns = [
     url(r'^logout/$', views.LogoutView.as_view(), name='logout'),
     # 用户中心
     url(r'^info/$', views.UserInfoView.as_view(), name='info'),
+    # 添加邮箱
+    url(r'^emails/$', views.EmailView.as_view(), name='emails'),
+    # 邮箱激活
+    url(r'^emails/verification/$', views.VerifyEmailView.as_view(), name='emails'),
+    # 收货地址
+    url(r'^addresses/$', views.AddressesView.as_view(), name='addresses'),
+    # 新增收货地址
+    url(r'^addresses/create/$', views.CreateAddressView.as_view(), name='create'),
 
 
 ]
