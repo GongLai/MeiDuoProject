@@ -545,3 +545,52 @@ class TitleAddressView(View):
 
         # 响应修改地址标题结果
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '设置地址标题成功'})
+
+
+class ChangePasswordView(View):
+    """修改密码"""
+
+    def get(self, request):
+        """
+        提供修改密码界面
+        :param request: 请求对象
+        :return: 响应
+        """
+
+        return render(request, 'user_center_pass.html')
+
+    def post(self, request):
+        """
+        实现修改密码逻辑
+        :param request: 请求对象
+        :return: 响应
+        """
+
+        # 接收参数
+        old_password = request.POST.get('old_pwd')
+        new_password = request.POST.get('new_pwd')
+        new_cpassword = request.POST.get('new_cpwd')
+
+        # 校验参数
+        if not all([old_password, new_password, new_cpassword]):
+            return http.HttpResponseForbidden('缺少必传参数')
+
+        # 业务处理
+        # 判断旧密码是否正确
+        if request.user.check_password(old_password) is False:
+            return render(request, 'user_center_pass.html', {'origin_pwd_errmsg': '原始密码输入错误'})
+        if not re.match(r'^[0-9A-Za-z]{8,20}$', new_password):
+            return http.HttpResponseForbidden('密码最少8位，最长20位')
+        if new_password != new_cpassword:
+            return http.HttpResponseForbidden('二次密码输入不一致')
+
+        # 修改旧密码
+        try:
+            request.user.set_password(new_password)
+            request.user.save()
+        except Exception as e:
+            logger.error(e)
+            return render(request, 'user_center_pass.html', {'change_pwd_errmsg': '修改密码失败'})
+
+        # 响应
+        return redirect(reverse('users:login'))
