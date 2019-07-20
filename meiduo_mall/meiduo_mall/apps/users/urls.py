@@ -23,6 +23,8 @@ urlpatterns = [
     url(r'^addresses/$', views.AddressesView.as_view(), name='addresses'),
     # 新增收货地址
     url(r'^addresses/create/$', views.CreateAddressView.as_view(), name='create'),
+    # 修改/删除收货地址
+    url(r'^addresses/(?P<address_id>\d+)/$', views.UpdateDestroyAddressView.as_view()),
 
 
 ]

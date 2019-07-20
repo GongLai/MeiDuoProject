@@ -292,7 +292,37 @@ class AddressesView(LoginRequiredView):
 
     def get(self, request):
         """提供收货地址界面展示"""
-        return render(request, 'user_center_site.html')
+
+        # 1.获取用户收货地址列表
+        user = request.user
+        addresses_qs = Address.objects.filter(user=user, is_deleted=False)
+
+        # 把查询集里面的模型转换成字典,然后再添加到列表中
+        address_dict_list = []
+        for address in addresses_qs:
+            address_dict_list.append({
+                'id': address.id,
+                "title": address.title,
+                "receiver": address.receiver,
+                "province": address.province.name,
+                "province_id": address.province_id,
+                "city": address.city.name,
+                "city_id": address.city_id,
+                "district": address.district.name,
+                "district_id": address.district_id,
+                "place": address.place,
+                "mobile": address.mobile,
+                "tel": address.tel,
+                "email": address.email
+            })
+
+        context = {
+            # 获取到用户默认收货地址的id
+            'default_address_id': user.default_address_id,
+            'addresses': address_dict_list,
+        }
+
+        return render(request, 'user_center_site.html', context)
 
 
 class CreateAddressView(LoginRequiredView):
@@ -356,8 +386,11 @@ class CreateAddressView(LoginRequiredView):
             "title": address.title,
             "receiver": address.receiver,
             "province": address.province.name,
+            "province_id": address.province_id,
             "city": address.city.name,
+            "city_id": address.city_id,
             "district": address.district.name,
+            "district_id": address.district_id,
             "place": address.place,
             "mobile": address.mobile,
             "tel": address.tel,
@@ -366,3 +399,101 @@ class CreateAddressView(LoginRequiredView):
 
         # 响应
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '新增地址成功', 'address': address_dict})
+
+
+class UpdateDestroyAddressView(LoginRequiredView):
+    """修改和删除收货地址"""
+
+    def put(self, request, address_id):
+        """
+        修改收货地址
+        :param request: 请求对象
+        :param address_id: 要修改的地址id
+        :return: 响应
+        """
+        # 1.接收参数
+        json_dict = json.loads(request.body)
+        title = json_dict.get('title')
+        receiver = json_dict.get('receiver')
+        province_id = json_dict.get('province_id')
+        city_id = json_dict.get('city_id')
+        district_id = json_dict.get('district_id')
+        place = json_dict.get('place')
+        mobile = json_dict.get('mobile')
+        tel = json_dict.get('tel')
+        email = json_dict.get('email')
+
+        # 2.校验参数
+        # 校验参数
+        if not all([title, receiver, province_id, city_id, district_id, place, mobile]):
+            return http.HttpResponseForbidden('缺少必传参数')
+        if not re.match(r'^1[3-9]\d{9}$', mobile):
+            return http.HttpResponseForbidden('参数mobile有误')
+        if tel:
+            if not re.match(r'^(0[0-9]{2,3}-)?([2-9][0-9]{6,7})+(-[0-9]{1,4})?$', tel):
+                return http.HttpResponseForbidden('参数tel有误')
+        if email:
+            if not re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+                return http.HttpResponseForbidden('参数email有误')
+
+        # 3.修改
+        # 查询要修改的模型对象
+        try:
+            address_model = Address.objects.get(id=address_id, user=request.user, is_deleted=False)
+        except Address.DoesNotExist:
+            return http.HttpResponseForbidden('address_id无效')
+
+        address_model.title = title
+        address_model.receiver = receiver
+        address_model.province_id = province_id
+        address_model.city_id = city_id
+        address_model.district_id = district_id
+        address_model.place = place
+        address_model.mobile = mobile
+        address_model.tel = tel
+        address_model.email = email
+        address_model.save()
+        # 如果使用update去修改数据时,auto_now 不会重新赋值
+        # 如果是调用save做的修改数据,才会对auto_now 进行重新赋值
+
+        # 4.把修改后的收货地址再转换成字典响应回去
+        address_dict = {
+            'id': address_model.id,
+            'title': address_model.title,
+            'receiver': address_model.receiver,
+            'province_id': address_model.province_id,
+            'province': address_model.province.name,
+            'city_id': address_model.city_id,
+            'city': address_model.city.name,
+            'district_id': address_model.district_id,
+            'district': address_model.district.name,
+            'place': address_model.place,
+            'mobile': address_model.mobile,
+            'tel': address_model.tel,
+            'email': address_model.email
+        }
+
+        return http.JsonResponse({
+            'code': RETCODE.OK,
+            'errmsg': '修改收货地址失败',
+            'address': address_dict
+        })
+
+    def delete(self, request, address_id):
+        """
+        删除收货地址
+        :param request: 请求对象
+        :param address_id: 需要删除的地址id
+        :return: 响应结果
+        """
+        try:  # 查询要删除的地址
+            address = Address.objects.get(id=address_id)
+            # 将需要删除的地址的逻辑删除设置为Ture
+            address.is_deleted = True
+            address.save()
+        except Exception as e:
+            logger.error(e)
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '删除地址失败'})
+
+        # 响应删除地址结果
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '删除地址成功'})
