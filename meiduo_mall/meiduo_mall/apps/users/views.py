@@ -497,3 +497,51 @@ class UpdateDestroyAddressView(LoginRequiredView):
 
         # 响应删除地址结果
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '删除地址成功'})
+
+
+class DefaultAddressView(LoginRequiredView):
+    """设置默认地址"""
+
+    def put(self, request, address_id):
+        """
+        设置默认地址
+        :param request: 请求对象
+        :return: 响应对象
+        """
+        try:
+            # 接收参数，查询地址
+            address = Address.objects.get(id=address_id)
+
+            # 设置地址为查询地址
+            request.user.default_address = address
+            request.user.save()
+        except Exception as e:
+            logger.error(e)
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '设置默认地址失败'})
+
+        # 响应设置默认地址结果
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '默认地址设置成功'})
+
+
+class TitleAddressView(View):
+    """修改地址标题"""
+
+    def put(self, request, address_id):
+        # 接收参数:地址标题
+        json_dict = json.loads(request.body)
+        title = json_dict.get('title')
+
+        # 查询参数
+        try:
+            # 查询地址
+            address = Address.objects.get(id=address_id)
+
+            # 设置新的地址标题
+            address.title = title
+            address.save()
+        except Exception as e:
+            logger.error(e)
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '修改地址标题失败'})
+
+        # 响应修改地址标题结果
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '设置地址标题成功'})
