@@ -9,6 +9,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import mixins
 
 from .models import User, Address
+from goods.models import SKU
 from utils import constants
 from utils.views import LoginRequiredView
 from meiduo_mall.utils.response_code import RETCODE
@@ -523,7 +524,7 @@ class DefaultAddressView(LoginRequiredView):
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '默认地址设置成功'})
 
 
-class TitleAddressView(View):
+class TitleAddressView(LoginRequiredView):
     """修改地址标题"""
 
     def put(self, request, address_id):
@@ -547,7 +548,7 @@ class TitleAddressView(View):
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '设置地址标题成功'})
 
 
-class ChangePasswordView(View):
+class ChangePasswordView(LoginRequiredView):
     """修改密码"""
 
     def get(self, request):
@@ -594,3 +595,60 @@ class ChangePasswordView(View):
 
         # 响应
         return redirect(reverse('users:login'))
+
+
+class UserBrowseHistory(LoginRequiredView):
+    """商品浏览记录"""
+
+    def get(self, request):
+        """查询商品浏览记录"""
+
+        # 创建redis连接对象
+        redis_conn = get_redis_connection('history')
+        # lrange获取当前用户在redis中存储的浏览记录sku_id
+        sku_ids = redis_conn.lrange('history_%s' % request.user.id, 0, -1)
+
+        # 根据sku_ids列表数据，查询出商品sku信息
+        skus = []  # 用来装每一个sku的字典
+        # 通过sku_id查询出对应的sku模型
+        for sku_id in sku_ids:
+            sku = SKU.objects.get(id=sku_id)
+            skus.append({
+                'id': sku.id,
+                'name': sku.name,
+                'default_image_url': sku.default_image.url,
+                'price': sku.price
+            })
+
+        # 响应：把sku模型转换成字典, 再添加到列表中,一定要注意它的顺序
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': skus})
+
+    def post(self, request):
+        """商品浏览记录保存"""
+
+        # 获取请求体中的sku_id
+        json_dict = json.loads(request.body.decode())
+        sku_id = json_dict.get('sku_id')
+
+        # 校验
+        try:
+            sku = SKU.objects.get(id=sku_id)
+        except SKU.DoesNotExist:
+            return http.HttpResponseForbidden('sku_id不存在')
+
+        # 保存用户浏览数据
+        # 创建redis连接对象
+        redis_conn = get_redis_connection('history')
+        pl = redis_conn.pipeline()
+        # 获取当前登录用户
+        user_id = request.user.id
+
+        # 先去重
+        pl.lrem('history_%s' % user_id, 0, sku_id)
+        # 再存储
+        pl.lpush('history_%s' % user_id, sku_id)
+        # 最后截取
+        pl.ltrim('history_%s' % user_id, 0, 4)
+        pl.execute()
+        # 响应
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
