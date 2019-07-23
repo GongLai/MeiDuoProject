@@ -6,11 +6,12 @@ import re, json, logging
 from django.contrib.auth import login, logout
 from django_redis import get_redis_connection
 from django.contrib.auth import authenticate
-from django.contrib.auth import mixins
+from django.conf import settings
 
 from .models import User, Address
 from goods.models import SKU
 from utils import constants
+from carts.utils import merge_cart_cookie_to_redis
 from utils.views import LoginRequiredView
 from meiduo_mall.utils.response_code import RETCODE
 from celery_tasks.email.tasks import send_verify_email
@@ -164,34 +165,40 @@ class LoginView(View):
 
     def post(self, request):
         """
-        用户登录功能实现
-        :param request: 请求对象
-        :return: 响应结果
-        """
-        #  1.接受参数
+         实现登录页面逻辑
+         :param request:请求对象
+         :return: 重定向过来页面
+         """
+        # 1.接收前段传来的数据
         username = request.POST.get('username')
         password = request.POST.get('password')
         remembered = request.POST.get('remembered')
 
-        #  2.校验参数
-        # 登录认证
-        user = authenticate(username=username, password=password)
-
-        #  3.业务处理
-        #  3.1 如果if成立说明登录失败
+        # 2.校验数据
+        # 2.1 登录认证
+        user = authenticate(request, username=username, password=password)
+        # 2.2 如果if成立,说明用户登录失败
         if user is None:
-            return render(request, 'login.html', {'errmsg': '用户名或密码错误'})
-        #  3.2 实现状态保持
-        login(request, user)
-        #  3.3 设置状态保持的周期，判断用户是否勾选记住用户
-        if remembered is None:
-            # 没有选择记住用户，浏览器会话结束就过期，默认过期时间是两周
-            # cookie如果指定过期时间为None 关闭浏览器删除, 如果指定0,它还没出生就没了
-            request.session.set_expiry(0)
+            return render(request, 'login.html', {'account': '用户名或密码错误'})
 
-        #  4.响应
+        # 3.业务逻辑处理
+        # 3.1 用户登录成功,实现状态保持
+        login(request, user)
+        # 3.2 设置状态保持的周期
+        if remembered != 'on':  # 3.2.1 判断用户是否有勾选'记住用户'选项. ['on':有勾选 ==> session.set_expiry(None),默认是两周过期]
+            request.session.set_expiry(0)
+            # session 过期时间指定为None,默认是两周;指定为0则是关闭浏览器即删除
+            # cookie 如果指定过期时间为None,即关闭浏览器即删除;如果指定0,它还没生成就被删除了
+
+        # 4.响应登录结果
+        # response = redirect(reverse('contents:index'))
         response = redirect(request.GET.get('next', '/'))
-        response.set_cookie('username', user.username, max_age=constants.USERNAME_COOKIE_EXPIRES)
+        # 登录时将用户名写入到cookie，有效期14天[SESSION_COOKIE_AGE= 60 * 60 * 24 * 7 * 2]
+        response.set_cookie('username', user.username, max_age=settings.SESSION_COOKIE_AGE)
+
+        # 合并购物车
+        merge_cart_cookie_to_redis(request, response)
+
         return response
 
 

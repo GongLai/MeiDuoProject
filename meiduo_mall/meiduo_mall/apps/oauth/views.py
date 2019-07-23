@@ -11,6 +11,7 @@ from meiduo_mall.utils.response_code import RETCODE
 from .models import OAuthQQUser
 from .utils import generate_openid_signature, check_openid_signature
 from users.models import User
+from carts.utils import merge_cart_cookie_to_redis
 
 logger = logging.getLogger('django')
 
@@ -83,6 +84,8 @@ class QQAuthUserView(View):
             # 在cookie中存储username
             response.set_cookie('username', user.username, max_age=settings.SESSION_COOKIE_AGE)
 
+            # QQ不是首次登录,登录成功那一刻合并购物车
+            merge_cart_cookie_to_redis(request, response)
             # 响应
             return response
 
@@ -147,5 +150,7 @@ class QQAuthUserView(View):
         response = redirect(request.GET.get('state', '/'))
         # cookie中存储username
         response.set_cookie('username', user.username, max_age=settings.SESSION_COOKIE_AGE)
+        # QQ用户首次登录[合并购物车]
+        merge_cart_cookie_to_redis(request, response)
         # 重定向
         return response
